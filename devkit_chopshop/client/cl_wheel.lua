@@ -274,27 +274,27 @@ local textUIShown = false
 CreateThread(function()
     while true do
         Wait(200)
-        
+
         if hasDrillEquipped then
             if Config.System == "textui" then
                 local playerPed = PlayerPedId()
                 local playerCoords = GetEntityCoords(playerPed)
                 local closestVehicle = getClosestVehicle()
                 local nearWheel = false
-                
+
                 if closestVehicle then
                     local wheelIndices = {0, 1, 2, 3}
                     local wheelBones = {"wheel_lf", "wheel_rf", "wheel_lr", "wheel_rr"}
                     local closestWheelIndex = -1
                     local closestDistance = Config.WheelDistance
-                    
+
                     for i, wheelIndex in ipairs(wheelIndices) do
                         local boneIndex = GetEntityBoneIndexByName(closestVehicle, wheelBones[i])
-                        
+
                         if boneIndex ~= -1 then
                             local wheelCoords = GetWorldPositionOfEntityBone(closestVehicle, boneIndex)
                             local distance = #(wheelCoords - playerCoords)
-                            
+
                             if distance < closestDistance then
                                 closestDistance = distance
                                 closestWheelIndex = wheelIndex
@@ -302,7 +302,7 @@ CreateThread(function()
                             end
                         end
                     end
-                    
+
                     if closestWheelIndex ~= -1 then
                         Draw2DText("Press [E] to Remove Wheel", 0.5, 0.9)
                         if IsControlJustPressed(0, 38) then -- E key
@@ -312,15 +312,24 @@ CreateThread(function()
                 end
             end
         end
-        
+
         if hasDrillEquipped then
-            showHelpText()
-            
             if IsControlJustPressed(0, 47) then -- G key
                 dropDrill()
             elseif IsControlJustPressed(0, 74) then -- H key
                 storeDrill()
             end
+        end
+    end
+end)
+
+-- Thread for displaying help text (needs to run every frame)
+CreateThread(function()
+    while true do
+        Wait(0)
+
+        if hasDrillEquipped then
+            showHelpText()
         end
     end
 end)
