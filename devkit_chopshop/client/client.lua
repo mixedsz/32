@@ -1123,7 +1123,7 @@ function setupBossMenuTargets()
                 local zone = lib.zones.sphere({
                     coords = vec3(bossCoords.x, bossCoords.y, bossCoords.z),
                     radius = 2.0,
-                    debug = true,
+                    debug = false,
                     textUIShown = false,
                     onEnter = function(self)
                         print("^2[ChopShop DEBUG] ========== PLAYER ENTERED BOSS ZONE FOR SHOP #" .. shopId .. " ==========^0")

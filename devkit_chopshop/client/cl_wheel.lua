@@ -21,11 +21,14 @@ end
 -- Check if player has an item
 function hasItem(itemName)
     if ESX then
-        local hasItemResult = false
+        local hasItemResult = nil
         ESX.TriggerServerCallback("devkit_chopshop:server:hasitemesx", function(result)
             hasItemResult = result
         end, itemName)
-        Wait(300)
+        -- Wait for callback to complete
+        while hasItemResult == nil do
+            Wait(10)
+        end
         return hasItemResult
     elseif QBCore then
         return QBCore.Functions.HasItem(itemName)
