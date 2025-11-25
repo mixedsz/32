@@ -359,25 +359,20 @@ function setupBlips()
     for shopId, shopData in pairs(allShops) do
         print(string.format("^3[ChopShop DEBUG] Shop #%d: %s^0", shopId, shopData.name or "Unknown"))
 
+        -- Use chopping coords for blip location
         local coords = shopData.coords or {}
         local blipData = shopData.blip or {}
 
         print(string.format("^3[ChopShop DEBUG] Blip data: sprite=%s, color=%s, scale=%s^0",
             tostring(blipData.sprite), tostring(blipData.color), tostring(blipData.scale)))
 
-        -- Fallback to bosscoords if no coords
-        if #coords < 1 then
-            if shopData.bosscoords and shopData.bosscoords.x then
-                coords[1] = shopData.bosscoords
-                print("^3[ChopShop DEBUG] Using bosscoords as fallback^0")
-            end
-        end
-
+        -- If no chop coords, don't create blip (don't fall back to boss coords)
         if #coords > 0 then
             if blipData.sprite and blipData.sprite > 0 then
                 blipData.color = blipData.color or 42
                 blipData.scale = blipData.scale or 0.7
 
+                -- Use first chopping location for blip
                 local coord = coords[1]
                 if coord and coord.x and coord.y and coord.z then
                     local blip = AddBlipForCoord(coord.x, coord.y, coord.z)
@@ -405,8 +400,8 @@ function setupBlips()
                         print(string.format("^2[ChopShop DEBUG]   Verify: sprite=%d, color=%d, alpha=%d^0",
                             verifySprite, verifyColor, verifyAlpha))
 
-                        print(string.format("^2[ChopShop DEBUG] Created blip #%d for shop #%d at %.2f, %.2f, %.2f^0",
-                            blip, shopId, coord.x, coord.y, coord.z))
+                        print(string.format("^2[ChopShop DEBUG] Created blip at CHOPPING location for shop #%d at %.2f, %.2f, %.2f^0",
+                            shopId, coord.x, coord.y, coord.z))
 
                         print(string.format("^2[ChopShop DEBUG]   Set: sprite=%d, color=%d, scale=%.2f^0",
                             blipData.sprite, blipData.color, blipData.scale))
@@ -419,11 +414,52 @@ function setupBlips()
                     shopId, tostring(blipData.sprite)))
             end
         else
-            print("^1[ChopShop DEBUG] No coords for shop #" .. shopId .. "^0")
+            print("^1[ChopShop DEBUG] No chopping coords for shop #" .. shopId .. "^0")
         end
     end
 
     print(string.format("^2[ChopShop DEBUG] Created %d blips total^0", blipCount))
+end
+
+-- Setup boss menu markers
+function setupBossMenuMarkers()
+    CreateThread(function()
+        while true do
+            Wait(0)
+            local playerPed = PlayerPedId()
+            local playerCoords = GetEntityCoords(playerPed)
+            local nearAnyBoss = false
+
+            for shopId, shopData in pairs(allShops) do
+                local bosscoords = shopData.bosscoords
+                if bosscoords and bosscoords.x then
+                    local bossPos = vector3(bosscoords.x, bosscoords.y, bosscoords.z)
+                    local distance = #(playerCoords - bossPos)
+
+                    if distance < 50.0 then
+                        nearAnyBoss = true
+                        -- Draw marker at boss menu location
+                        DrawMarker(
+                            20, -- Marker type (cylinder)
+                            bosscoords.x, bosscoords.y, bosscoords.z,
+                            0.0, 0.0, 0.0, -- Direction
+                            0.0, 0.0, 0.0, -- Rotation
+                            0.5, 0.5, 0.5, -- Scale
+                            255, 0, 0, 150, -- RGBA (red with transparency)
+                            false, -- Bob up and down
+                            true, -- Face camera
+                            2, -- Rotation order
+                            false, nil, nil, false
+                        )
+                    end
+                end
+            end
+
+            if not nearAnyBoss then
+                Wait(500) -- If not near any boss menu, check less frequently
+            end
+        end
+    end)
 end
 
 -- Event: Receive all shops
@@ -446,6 +482,9 @@ AddEventHandler("devkit_chopshop:receiveAllShops", function(shops)
 
     print("^3[ChopShop DEBUG] Setting up blips...^0")
     setupBlips()
+
+    print("^3[ChopShop DEBUG] Setting up boss menu markers...^0")
+    setupBossMenuMarkers()
 
     print("^2[ChopShop DEBUG] All shops setup complete!^0")
 end)
@@ -791,6 +830,12 @@ function openAdminShopDetails(shopId)
 
                 print(string.format("^3[ChopShop DEBUG] Saving blip - sprite: %d, color: %d, scale: %.2f^0", newSprite, newColor, newScale))
                 TriggerServerEvent("devkit_chopshop:adminUpdateShopBlip", shopId, newSprite, newColor, newScale)
+
+                -- Wait for server to update and client to receive new data
+                Wait(500)
+
+                -- Notify user
+                Config.Notify("Blip settings saved!", "success")
             end
         },
         {
@@ -903,45 +948,41 @@ function setupChopShopDialogRaycast()
     -- Pick boss menu location
     local bossCoords = PickCoordRaycast("Boss Menu")
     if not bossCoords then return end
-    
+
     Wait(500)
-    
+
     -- Pick chop location
     local chopCoords = PickCoordRaycast("Chop Location")
     if not chopCoords then return end
-    
+
     -- Get shop details
     local input = lib.inputDialog("Setup New Chopshop", {
         {type = "input", label = "Chop Shop Name", placeholder = "Franklin's Chopshop"},
         {type = "number", label = "Price", default = 50000},
         {type = "number", label = "Cooldown (minutes)", default = 30},
-        {type = "checkbox", label = "Enable Blip?", default = true},
         {type = "number", label = "Blip Sprite", default = 225},
         {type = "number", label = "Blip Color", default = 42},
         {type = "number", label = "Blip Scale", default = 0.7}
     })
     if not input then return end
-    
+
     local shopName = input[1] or "Unnamed Chop"
     local price = tonumber(input[2]) or 50000
     local cooldown = tonumber(input[3]) or 30
-    local blipEnabled = input[4]
-    local blipSprite = tonumber(input[5]) or 108
-    local blipColor = tonumber(input[6]) or 42
-    local blipScale = tonumber(input[7]) or 0.7
-    
-    local blipData = {}
-    if blipEnabled then
-        blipData = {
-            sprite = blipSprite,
-            color = blipColor,
-            scale = blipScale
-        }
-    end
-    
+    local blipSprite = tonumber(input[4]) or 225
+    local blipColor = tonumber(input[5]) or 42
+    local blipScale = tonumber(input[6]) or 0.7
+
+    -- Always create blip at chopping location (automatically enabled)
+    local blipData = {
+        sprite = blipSprite,
+        color = blipColor,
+        scale = blipScale
+    }
+
     local bossLocation = {x = bossCoords.x, y = bossCoords.y, z = bossCoords.z}
     local chopLocations = {{x = chopCoords.x, y = chopCoords.y, z = chopCoords.z}}
-    
+
     local newShop = {
         name = shopName,
         price = price,
@@ -950,7 +991,7 @@ function setupChopShopDialogRaycast()
         bosscoords = bossLocation,
         blip = blipData
     }
-    
+
     TriggerServerEvent("devkit_chopshop:createShop", newShop)
 end
 
