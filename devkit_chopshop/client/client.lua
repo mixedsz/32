@@ -384,11 +384,16 @@ function setupBlips()
                         SetBlipDisplay(blip, 4)
                         SetBlipScale(blip, blipData.scale)
                         SetBlipColour(blip, blipData.color)
-                        SetBlipAsShortRange(blip, false)  -- FALSE = Always visible on map
+                        SetBlipAsShortRange(blip, true)  -- TRUE = Show on map when in range, FALSE = always on radar
                         SetBlipAlpha(blip, 255)  -- Full opacity
+                        SetBlipCategory(blip, 1)  -- Category: default
                         BeginTextCommandSetBlipName("STRING")
                         AddTextComponentString(shopData.name or ("ChopShop #" .. tostring(shopId)))
                         EndTextCommandSetBlipName(blip)
+
+                        -- Force blip to show
+                        SetBlipPriority(blip, 10)  -- High priority
+                        SetBlipHiddenOnLegend(blip, false)  -- Show in legend
 
                         table.insert(shopBlips, blip)
                         blipCount = blipCount + 1
@@ -438,10 +443,10 @@ function setupBossMenuMarkers()
 
                     if distance < 50.0 then
                         nearAnyBoss = true
-                        -- Draw marker at boss menu location
+                        -- Draw marker at boss menu location (raised 1.0 unit above ground)
                         DrawMarker(
                             20, -- Marker type (cylinder)
-                            bosscoords.x, bosscoords.y, bosscoords.z,
+                            bosscoords.x, bosscoords.y, bosscoords.z + 1.0,
                             0.0, 0.0, 0.0, -- Direction
                             0.0, 0.0, 0.0, -- Rotation
                             0.5, 0.5, 0.5, -- Scale
