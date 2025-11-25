@@ -269,32 +269,51 @@ RegisterNetEvent('devkit_chopshop:client:useImpactDrill', function()
     setupOxTarget()
 end)
 
--- Thread for TextUI system
+-- Thread for TextUI system and key detection
 local textUIShown = false
+local helpTextShown = false
 CreateThread(function()
     while true do
-        Wait(200)
-        
+        Wait(0)
+
         if hasDrillEquipped then
+            -- Show help text only once
+            if not helpTextShown then
+                helpTextShown = true
+            end
+
+            -- Display help text every frame when drill is equipped
+            showHelpText()
+
+            -- Key detection for G and H
+            if IsControlJustPressed(0, 47) then -- G key
+                dropDrill()
+                helpTextShown = false
+            elseif IsControlJustPressed(0, 74) then -- H key
+                storeDrill()
+                helpTextShown = false
+            end
+
+            -- TextUI system for wheel removal
             if Config.System == "textui" then
                 local playerPed = PlayerPedId()
                 local playerCoords = GetEntityCoords(playerPed)
                 local closestVehicle = getClosestVehicle()
                 local nearWheel = false
-                
+                local closestWheelIndex = -1
+
                 if closestVehicle then
                     local wheelIndices = {0, 1, 2, 3}
                     local wheelBones = {"wheel_lf", "wheel_rf", "wheel_lr", "wheel_rr"}
-                    local closestWheelIndex = -1
                     local closestDistance = Config.WheelDistance
-                    
+
                     for i, wheelIndex in ipairs(wheelIndices) do
                         local boneIndex = GetEntityBoneIndexByName(closestVehicle, wheelBones[i])
-                        
+
                         if boneIndex ~= -1 then
                             local wheelCoords = GetWorldPositionOfEntityBone(closestVehicle, boneIndex)
                             local distance = #(wheelCoords - playerCoords)
-                            
+
                             if distance < closestDistance then
                                 closestDistance = distance
                                 closestWheelIndex = wheelIndex
@@ -302,25 +321,40 @@ CreateThread(function()
                             end
                         end
                     end
-                    
+
                     if closestWheelIndex ~= -1 then
-                        Draw2DText("Press [E] to Remove Wheel", 0.5, 0.9)
+                        -- Show TextUI only if not already shown
+                        if not textUIShown then
+                            Config.ShowTextUI("[E] - Remove Wheel")
+                            textUIShown = true
+                        end
+
                         if IsControlJustPressed(0, 38) then -- E key
                             removeClosestWheel()
                         end
+                    else
+                        -- Hide TextUI if no wheel nearby and it was shown
+                        if textUIShown then
+                            Config.HideTextUI()
+                            textUIShown = false
+                        end
+                    end
+                else
+                    -- Hide TextUI if no vehicle and it was shown
+                    if textUIShown then
+                        Config.HideTextUI()
+                        textUIShown = false
                     end
                 end
             end
-        end
-        
-        if hasDrillEquipped then
-            showHelpText()
-            
-            if IsControlJustPressed(0, 47) then -- G key
-                dropDrill()
-            elseif IsControlJustPressed(0, 74) then -- H key
-                storeDrill()
+        else
+            -- Hide TextUI when drill is not equipped
+            if textUIShown then
+                Config.HideTextUI()
+                textUIShown = false
             end
+            helpTextShown = false
+            Wait(500) -- Only check every 500ms when drill is not equipped
         end
     end
 end)
