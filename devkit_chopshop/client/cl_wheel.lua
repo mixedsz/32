@@ -66,20 +66,18 @@ function setupOxTarget()
     if Config.System ~= "ox_target" then
         return
     end
-    
+
     if not exports.ox_target then
         return
     end
-    
+
     exports.ox_target:addGlobalVehicle({
         {
             name = "devkit_chopshop:removeWheel",
             icon = "fas fa-screwdriver",
             label = "Remove Wheel",
             canInteract = function(entity, distance, coords, name)
-                if hasDrillEquipped then
-                    return hasItem(Config.RequiredItem)
-                end
+                -- Once drill is equipped, allow interaction
                 return hasDrillEquipped
             end,
             onSelect = function(data)
@@ -269,18 +267,24 @@ RegisterNetEvent('devkit_chopshop:client:useImpactDrill', function()
     setupOxTarget()
 end)
 
--- Thread for TextUI system
+-- Thread for TextUI system and key detection
 local textUIShown = false
 CreateThread(function()
     while true do
-        Wait(200)
+        Wait(0) -- Run every frame for smooth text display
 
         if hasDrillEquipped then
+            -- Check for G/H key presses
+            if IsControlJustPressed(0, 47) then -- G key
+                dropDrill()
+            elseif IsControlJustPressed(0, 74) then -- H key
+                storeDrill()
+            end
+
             if Config.System == "textui" then
                 local playerPed = PlayerPedId()
                 local playerCoords = GetEntityCoords(playerPed)
                 local closestVehicle = getClosestVehicle()
-                local nearWheel = false
 
                 if closestVehicle then
                     local wheelIndices = {0, 1, 2, 3}
@@ -298,7 +302,6 @@ CreateThread(function()
                             if distance < closestDistance then
                                 closestDistance = distance
                                 closestWheelIndex = wheelIndex
-                                nearWheel = true
                             end
                         end
                     end
@@ -311,14 +314,8 @@ CreateThread(function()
                     end
                 end
             end
-        end
-
-        if hasDrillEquipped then
-            if IsControlJustPressed(0, 47) then -- G key
-                dropDrill()
-            elseif IsControlJustPressed(0, 74) then -- H key
-                storeDrill()
-            end
+        else
+            Wait(200) -- When drill not equipped, check less frequently
         end
     end
 end)
@@ -356,14 +353,14 @@ end
 -- Store drill
 function storeDrill()
     local playerPed = PlayerPedId()
-    
+
     if attachedDrill then
         DeleteObject(attachedDrill)
         attachedDrill = nil
     end
-    
+
     hasDrillEquipped = false
-    Config.Notify(Config.NotificationMessages.drill_stored or "Drill stored.", "inform")
+    Config.Notify(Config.NotificationMessages.drill_stored or "Drill stored.", "success")
     removeOxTarget()
 end
 
