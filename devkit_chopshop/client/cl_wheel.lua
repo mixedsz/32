@@ -66,27 +66,32 @@ function setupOxTarget()
     if Config.System ~= "ox_target" then
         return
     end
-    
+
     if not exports.ox_target then
         return
     end
-    
-    exports.ox_target:addGlobalVehicle({
-        {
-            name = "devkit_chopshop:removeWheel",
-            icon = "fas fa-screwdriver",
-            label = "Remove Wheel",
-            canInteract = function(entity, distance, coords, name)
-                if hasDrillEquipped then
-                    return hasItem(Config.RequiredItem)
+
+    -- Add target for each wheel bone
+    local wheelBones = {"wheel_lf", "wheel_rf", "wheel_lr", "wheel_rr"}
+    local wheelNames = {"Left Front Wheel", "Right Front Wheel", "Left Rear Wheel", "Right Rear Wheel"}
+
+    for i, boneName in ipairs(wheelBones) do
+        exports.ox_target:addGlobalVehicle({
+            {
+                name = "devkit_chopshop:removeWheel_" .. boneName,
+                icon = "fas fa-screwdriver",
+                label = "Remove " .. wheelNames[i],
+                bone = boneName,
+                distance = Config.WheelDistance or 2.0,
+                canInteract = function(entity, distance, coords, name)
+                    return hasDrillEquipped and hasItem(Config.RequiredItem)
+                end,
+                onSelect = function(data)
+                    removeClosestWheel()
                 end
-                return hasDrillEquipped
-            end,
-            onSelect = function(data)
-                removeClosestWheel()
-            end
-        }
-    })
+            }
+        })
+    end
 end
 
 -- Remove ox_target
@@ -94,9 +99,12 @@ function removeOxTarget()
     if Config.System ~= "ox_target" then
         return
     end
-    
+
     if exports.ox_target then
-        exports.ox_target:removeGlobalVehicle("devkit_chopshop:removeWheel")
+        local wheelBones = {"wheel_lf", "wheel_rf", "wheel_lr", "wheel_rr"}
+        for i, boneName in ipairs(wheelBones) do
+            exports.ox_target:removeGlobalVehicle("devkit_chopshop:removeWheel_" .. boneName)
+        end
     end
 end
 
@@ -270,7 +278,6 @@ RegisterNetEvent('devkit_chopshop:client:useImpactDrill', function()
 end)
 
 -- Thread for TextUI system and key detection
-local textUIShown = false
 local helpTextShown = false
 CreateThread(function()
     while true do
@@ -323,38 +330,32 @@ CreateThread(function()
                     end
 
                     if closestWheelIndex ~= -1 then
-                        -- Show TextUI only if not already shown
-                        if not textUIShown then
-                            Config.ShowTextUI("[E] - Remove Wheel")
-                            textUIShown = true
-                        end
+                        Draw2DText("Press [E] to Remove Wheel", 0.5, 0.9)
 
                         if IsControlJustPressed(0, 38) then -- E key
                             removeClosestWheel()
                         end
-                    else
-                        -- Hide TextUI if no wheel nearby and it was shown
-                        if textUIShown then
-                            Config.HideTextUI()
-                            textUIShown = false
-                        end
-                    end
-                else
-                    -- Hide TextUI if no vehicle and it was shown
-                    if textUIShown then
-                        Config.HideTextUI()
-                        textUIShown = false
                     end
                 end
             end
         else
-            -- Hide TextUI when drill is not equipped
-            if textUIShown then
-                Config.HideTextUI()
-                textUIShown = false
-            end
             helpTextShown = false
             Wait(500) -- Only check every 500ms when drill is not equipped
+        end
+    end
+end)
+
+-- Thread to auto-unequip drill when entering vehicle
+CreateThread(function()
+    while true do
+        Wait(500)
+
+        if hasDrillEquipped then
+            local playerPed = PlayerPedId()
+
+            if IsPedInAnyVehicle(playerPed, false) then
+                storeDrill()
+            end
         end
     end
 end)
