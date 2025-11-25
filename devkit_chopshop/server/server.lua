@@ -653,6 +653,18 @@ if ESX then
             cb(false)
         end
     end)
+
+    -- Register impact_drill as usable item
+    ESX.RegisterUsableItem('impact_drill', function(playerId)
+        TriggerClientEvent('devkit_chopshop:client:useImpactDrill', playerId)
+    end)
+end
+
+-- QB-Core: Register impact_drill as usable item
+if QBCore then
+    QBCore.Functions.CreateUseableItem('impact_drill', function(source, item)
+        TriggerClientEvent('devkit_chopshop:client:useImpactDrill', source)
+    end)
 end
 
 -- Event: Remove item
